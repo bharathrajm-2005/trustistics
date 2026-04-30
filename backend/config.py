@@ -15,9 +15,10 @@ if DEPLOYER_PRIVATE_KEY == "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae
     logging.warning("DO NOT use Hardhat default key outside local testing")
 
 CHAIN_ID = int(os.getenv("CHAIN_ID", "31337"))
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
+UPLOAD_DIR = os.path.abspath(os.getenv("UPLOAD_DIR", "./uploads"))
 QR_DIR = os.getenv("QR_DIR", "./qrcodes")
 RISK_BREACH_THRESHOLD = float(os.getenv("RISK_BREACH_THRESHOLD", "2.0"))
 RISK_HIGH_SCORE = float(os.getenv("RISK_HIGH_SCORE", "70.0"))
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(QR_DIR, exist_ok=True)

@@ -24,6 +24,10 @@ export interface BackendShipment {
   destination: string;
   status?: string;
   risk_score?: number;
+  customs_status?: string;
+  customs_location?: string;
+  customs_notes?: string;
+  customs_officer?: string;
   data_hash?: string;
   blockchain_tx?: string;
   created_at?: string;
@@ -39,6 +43,8 @@ export interface CreateShipmentPayload {
   product: string;
   origin: string;
   destination: string;
+  min_temp_celsius?: number;
+  max_temp_celsius?: number;
 }
 
 export interface CreateShipmentResponse {
@@ -76,7 +82,9 @@ export interface VerificationResult {
   temperature_check?: string;
   risk_score?: number;
   verified_at?: string;
+  climate_alerts?: any[];
 }
+
 
 // ─── Helper ───────────────────────────────────────────────────────
 function log(method: string, url: string, payload?: any) {
@@ -176,6 +184,9 @@ export async function getDocuments(shipmentId: string): Promise<ApiEnvelope> {
     throw err;
   }
 }
+
+// Alias for semantic clarity in Tamper Detection
+export const listDocuments = getDocuments;
 
 // ─── Tracking / Temperature ──────────────────────────────────────
 export async function logTemperature(shipmentId: string, payload: TemperatureLogPayload): Promise<ApiEnvelope> {
@@ -354,3 +365,66 @@ export async function healthCheck(): Promise<ApiEnvelope> {
     throw err;
   }
 }
+
+// ─── Customs ──────────────────────────────────────────────────────
+export interface CustomsClearancePayload {
+  location: string;
+  clearance_status: string;
+  notes?: string;
+  officer_name?: string;
+}
+
+export async function submitCustomsClearance(shipmentId: string, payload: CustomsClearancePayload): Promise<ApiEnvelope> {
+  const url = `/api/customs/${shipmentId}/clearance`;
+  log('POST', url, payload);
+  try {
+    const res = await api.post(url, payload);
+    logResponse('POST', url, res.data);
+    return res.data;
+  } catch (err: any) {
+    logError('POST', url, err);
+    throw err;
+  }
+}
+
+// ─── Weather ──────────────────────────────────────────────────────
+export async function getDispatchWeatherCheck(shipmentId: string): Promise<ApiEnvelope> {
+  const url = `/api/weather/dispatch-check/${shipmentId}`;
+  log('GET', url);
+  try {
+    const res = await api.get(url);
+    logResponse('GET', url, res.data);
+    return res.data;
+  } catch (err: any) {
+    logError('GET', url, err);
+    throw err;
+  }
+}
+
+export async function getRouteForecast(shipmentId: string): Promise<ApiEnvelope> {
+  const url = `/api/weather/route-forecast/${shipmentId}`;
+  log('GET', url);
+  try {
+    const res = await api.get(url);
+    logResponse('GET', url, res.data);
+    return res.data;
+  } catch (err: any) {
+    logError('GET', url, err);
+    throw err;
+  }
+}
+
+export async function checkTransitWeather(shipmentId: string, currentLocation: string, currentTemp: number): Promise<ApiEnvelope> {
+  const url = `/api/weather/transit-check`;
+  const payload = { shipmentId, currentLocation, currentTemp };
+  log('POST', url, payload);
+  try {
+    const res = await api.post(url, payload);
+    logResponse('POST', url, res.data);
+    return res.data;
+  } catch (err: any) {
+    logError('POST', url, err);
+    throw err;
+  }
+}
+

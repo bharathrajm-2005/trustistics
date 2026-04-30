@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Badge } from '../components/ui';
-import { BellRing, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { BellRing, Check, AlertTriangle, Loader2, CloudRain } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { getAlerts, resolveAlert } from '../api/shipmentApi';
 
@@ -86,14 +86,14 @@ export function Alerts() {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div className={`p-2 rounded-full mt-1 ${alert.resolved ? 'bg-gray-200 text-gray-500' : 'bg-red-100 text-red-600'}`}>
-                      <AlertTriangle className="w-5 h-5" />
+                    <div className={`p-2 rounded-full mt-1 ${alert.resolved ? 'bg-gray-200 text-gray-500' : alert.alert_type === 'Climate Risk' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                      {alert.alert_type === 'Climate Risk' ? <CloudRain className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className={`font-semibold ${alert.resolved ? 'text-gray-700' : 'text-gray-900'}`}>{alert.alert_type}</h3>
-                        <Badge variant={alert.resolved ? 'default' : 'danger'}>{alert.resolved ? 'Resolved' : 'Active'}</Badge>
-                        {alert.severity && <Badge variant={alert.severity === 'CRITICAL' ? 'danger' : 'default'}>{alert.severity}</Badge>}
+                        <Badge variant={alert.resolved ? 'default' : alert.alert_type === 'Climate Risk' ? 'info' : 'danger'}>{alert.resolved ? 'Resolved' : 'Active'}</Badge>
+                        {alert.severity && <Badge variant={alert.severity === 'CRITICAL' && alert.alert_type !== 'Climate Risk' ? 'danger' : 'default'}>{alert.severity}</Badge>}
                       </div>
                       <p className="text-sm text-gray-600 mb-2">Shipment: <span className="font-medium">{alert.shipment_id}</span></p>
                       <p className="text-sm text-gray-800 bg-white p-2 rounded border border-gray-100 inline-block">
@@ -101,6 +101,7 @@ export function Alerts() {
                       </p>
                     </div>
                   </div>
+
                   
                   <div className="flex flex-col items-end gap-3 min-w-[120px]">
                     <span className="text-xs text-gray-500 font-medium">

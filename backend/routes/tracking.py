@@ -4,6 +4,7 @@ import backend.services.temperature_service as svc
 import backend.services.shipment_service as ship_svc
 from backend.utils.response import api_response
 from backend.services.blockchain_service import blockchain
+from backend.services.risk_service import compute_and_save_risk
 
 router = APIRouter(tags=["Tracking"])
 
@@ -30,7 +31,10 @@ def log_temperature(shipment_id: str, data: TemperatureLogCreate):
     record = svc.log_temperature(shipment_id, data)
     if record is None:
         return api_response(success=False, message="Shipment not found", error="Not Found", status_code=404)
-    return api_response(success=True, message="Temperature logged", data=record)
+    # Auto-recompute risk score and persist it. Fires HIGH_RISK alert if threshold crossed.
+    risk = compute_and_save_risk(shipment_id)
+    return api_response(success=True, message="Temperature logged", data={**record, "updated_risk": risk})
+
 
 @router.get("/{shipment_id}/temperature")
 def get_logs(shipment_id: str, limit: int = Query(200)):

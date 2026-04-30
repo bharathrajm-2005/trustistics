@@ -16,12 +16,20 @@ def get_all_alerts(shipment_id: str = Query(None), resolved: bool = Query(None),
     query = {}
     if shipment_id: query["shipment_id"] = shipment_id
     if resolved is not None: query["resolved"] = resolved
-    data = list(alerts.find(query, {"_id": 0}).sort("created_at", -1).limit(limit))
+    cursor = alerts.find(query).sort("created_at", -1).limit(limit)
+    data = []
+    for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        data.append(doc)
     return api_response(success=True, message="Alerts retrieved", data=data)
 
 @router.get("/{shipment_id}")
 def get_shipment_alerts(shipment_id: str):
-    data = list(alerts.find({"shipment_id": shipment_id}, {"_id": 0}).sort("created_at", -1))
+    cursor = alerts.find({"shipment_id": shipment_id}).sort("created_at", -1)
+    data = []
+    for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        data.append(doc)
     return api_response(success=True, message=f"Alerts for {shipment_id}", data=data)
 
 @router.patch("/{alert_id}/resolve")

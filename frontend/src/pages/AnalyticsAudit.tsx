@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Badge } from '../components/ui';
+import { Card, Badge, RiskBadge } from '../components/ui';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line
@@ -161,9 +161,7 @@ export function AnalyticsAudit() {
                       <Badge variant={s.status === 'FLAGGED' ? 'danger' : 'default'}>{s.status || 'CREATED'}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`font-medium ${(s.risk_score ?? 0) > 70 ? 'text-red-600' : 'text-green-600'}`}>
-                        {s.risk_score ?? 0}
-                      </span>
+                      <RiskBadge score={s.risk_score ?? 0} />
                     </td>
                     <td className="px-4 py-3 text-slate-600 text-xs">
                       {s.created_at ? format(new Date(s.created_at), 'yyyy-MM-dd HH:mm') : 'N/A'}

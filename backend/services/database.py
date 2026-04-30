@@ -12,6 +12,7 @@ handoffs = db["handoffs"]
 alerts = db["alerts"]
 audit_logs = db["audit_logs"]
 blockchain_events = db["blockchain_events"]
+users = db["users"]
 
 def ensure_indexes():
     shipments.create_index([("shipment_id", ASCENDING)], unique=True)
@@ -22,3 +23,4 @@ def ensure_indexes():
     handoffs.create_index([("shipment_id", ASCENDING), ("timestamp", ASCENDING)])
     alerts.create_index([("shipment_id", ASCENDING), ("resolved", ASCENDING)])
     audit_logs.create_index([("shipment_id", ASCENDING), ("timestamp", DESCENDING)])
+    users.create_index([("email", ASCENDING)], unique=True)

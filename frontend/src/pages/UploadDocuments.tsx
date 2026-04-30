@@ -90,15 +90,27 @@ export function UploadDocuments() {
         </div>
 
         <div className="space-y-8">
-          <div className="max-w-md">
-            <label className="text-sm font-medium text-gray-700 block mb-2">Target Shipment ID</label>
-            <input 
-              type="text" 
-              value={shipmentId}
-              onChange={(e) => setShipmentId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" 
-              placeholder="e.g. SHP-9021" 
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Target Shipment ID</label>
+              <input 
+                type="text" 
+                value={shipmentId}
+                onChange={(e) => setShipmentId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" 
+                placeholder="e.g. SHP-9021" 
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Document Category</label>
+              <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none bg-white">
+                <option>Certificate of Origin</option>
+                <option>Pharma Grade Compliance</option>
+                <option>Customs Clearance</option>
+                <option>Handoff Bill of Lading</option>
+                <option>Quality Inspection Report</option>
+              </select>
+            </div>
           </div>
 
           <div 

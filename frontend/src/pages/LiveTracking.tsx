@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Badge } from '../components/ui';
-import { MapPin, QrCode, Search, Thermometer, Clock, Loader2 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { getShipment, getTemperatureLogs, type BackendShipment } from '../api/shipmentApi';
+import { Card, Badge, RiskBadge, ProgressTracker } from '../components/ui';
+import { MapPin, QrCode, Search, Thermometer, Clock, Loader2, CloudRain, AlertTriangle } from 'lucide-react';
+import { formatDistanceToNow, parseISO, format } from 'date-fns';
+import { getShipment, getTemperatureLogs, getRouteForecast, type BackendShipment } from '../api/shipmentApi';
+
 
 export function LiveTracking() {
   const [searchParams] = useSearchParams();
@@ -13,7 +14,10 @@ export function LiveTracking() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<BackendShipment | null>(null);
   const [tempLogs, setTempLogs] = useState<any[]>([]);
+  const [routeForecast, setRouteForecast] = useState<any[]>([]);
+  const [loadingForecast, setLoadingForecast] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (initialId) handleSearch(initialId);
@@ -30,11 +34,25 @@ export function LiveTracking() {
         // Also fetch temperature logs
         const tempRes = await getTemperatureLogs(id).catch(() => null);
         if (tempRes?.success) setTempLogs(tempRes.data || []);
+        // Fetch forecast
+        setLoadingForecast(true);
+        try {
+          const forecastRes = await getRouteForecast(id);
+          if (forecastRes.success) {
+            setRouteForecast(forecastRes.data || []);
+          }
+        } catch (fErr) {
+          console.error("Failed to fetch forecast", fErr);
+        } finally {
+          setLoadingForecast(false);
+        }
       } else {
         setError('Shipment not found');
         setData(null);
+        setRouteForecast([]);
       }
     } catch (err: any) {
+
       setError(err?.response?.data?.message || 'Failed to fetch shipment');
       setData(null);
     } finally {
@@ -117,6 +135,11 @@ export function LiveTracking() {
                 </Badge>
               </div>
 
+              {/* Progress Tracker */}
+              <div className="mb-6 py-3 px-4 bg-gray-50 rounded-xl border border-gray-100">
+                <ProgressTracker status={data.status} />
+              </div>
+
               <div className="h-64 bg-slate-100 rounded-xl flex items-center justify-center mb-6 relative overflow-hidden border border-gray-200">
                 <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                 <div className="flex flex-col items-center gap-2 z-10">
@@ -145,9 +168,57 @@ export function LiveTracking() {
                 </div>
               )}
             </Card>
+
+            {/* Route Weather Forecast */}
+            <Card className="p-6">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CloudRain className="w-5 h-5 text-gray-400" /> Route Weather Forecast
+              </h3>
+              {loadingForecast ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
+                </div>
+              ) : routeForecast.length > 0 ? (
+                <div className="space-y-4">
+                  {['origin', 'destination'].map((pointType) => {
+                    const loc = pointType === 'origin' ? data.origin : data.destination;
+                    const points = routeForecast.filter(f => f.location === loc);
+                    if (points.length === 0) return null;
+                    return (
+                      <div key={pointType} className="border border-gray-100 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 font-medium text-sm text-gray-700 capitalize">
+                          {pointType}: {loc}
+                        </div>
+                        <div className="divide-y divide-gray-50">
+                          {points.map((pt, idx) => (
+                            <div key={idx} className={`px-4 py-3 flex items-center justify-between ${pt.risk_level === 'high' ? 'bg-red-50/50' : pt.risk_level === 'medium' ? 'bg-amber-50/50' : ''}`}>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {format(parseISO(pt.timestamp.replace(' ', 'T')), 'MMM d, h:mm a')}
+                                </p>
+                                <p className="text-xs text-gray-500 capitalize">{pt.description}</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`font-bold ${pt.risk_level === 'high' ? 'text-red-600' : pt.risk_level === 'medium' ? 'text-amber-600' : 'text-gray-900'}`}>
+                                  {pt.temperature}°C
+                                </span>
+                                {pt.risk_level === 'high' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No forecast data available.</p>
+              )}
+            </Card>
           </div>
 
           <div className="space-y-6">
+
             <Card className="p-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Thermometer className="w-5 h-5 text-gray-400" /> Temperature Monitor
@@ -207,11 +278,9 @@ export function LiveTracking() {
                     {data.updated_at ? formatDistanceToNow(new Date(data.updated_at), { addSuffix: true }) : 'Just now'}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Risk Score:</span>
-                  <span className={`font-medium ${(data.risk_score ?? 0) > 50 ? 'text-red-600' : 'text-green-600'}`}>
-                    {data.risk_score ?? 0}%
-                  </span>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Risk Level:</span>
+                  <RiskBadge score={data.risk_score ?? 0} />
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Events:</span>
