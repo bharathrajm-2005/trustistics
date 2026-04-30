@@ -3,7 +3,7 @@ import { cn } from '../layout/Sidebar'; // using cn from there for now
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("bg-white rounded-xl shadow-sm border border-gray-100", className)}>
+    <div className={cn("bg-white rounded-xl shadow-lg border border-gray-200", className)}>
       {children}
     </div>
   );
@@ -26,3 +26,4 @@ export function Badge({ children, variant = 'default' }: { children: ReactNode, 
 export * from './RiskBadge';
 export * from './ProgressTracker';
 export * from './StaggeredMenu';
+export { default as SoftAurora } from './SoftAurora';

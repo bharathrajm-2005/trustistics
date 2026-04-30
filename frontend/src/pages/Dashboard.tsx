@@ -79,7 +79,7 @@ export function Dashboard() {
         {/* Header & Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Recent Shipments</h2>
+            <h2 className="text-xl font-bold text-white">Recent Shipments</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Auto-refreshes every 10s &nbsp;·&nbsp; Last: {lastRefreshed.toLocaleTimeString()}
             </p>

@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { StaggeredMenu } from '../ui/StaggeredMenu';
+import { StaggeredMenu, SoftAurora } from '../ui';
 import { Header } from './Header';
 
 const allNavItems = [
@@ -38,7 +37,16 @@ export function Layout({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#0a0a0b] flex flex-col relative overflow-x-hidden">
+      <div className="aurora-background">
+        <SoftAurora 
+          speed={0.4} 
+          color1="#871364" 
+          color2="#4a044e" 
+          brightness={1.5}
+        />
+      </div>
+
       <StaggeredMenu 
         position="left"
         isFixed={true}
@@ -51,12 +59,12 @@ export function Layout({ children }: { children: ReactNode }) {
         ]}
         colors={['#871364', '#6d0f50', '#a11778']}
         accentColor="#871364"
-        menuButtonColor="#0f172a"
+        menuButtonColor="#ffffff"
         openMenuButtonColor="#871364"
         logoUrl=""
       />
       
-      <div className="flex-1 flex flex-col w-full min-w-0 transition-all duration-300">
+      <div className="flex-1 flex flex-col w-full min-w-0 transition-all duration-300 relative z-10">
         <Header onMenuClick={() => {}} />
         <main className="flex-1 p-4 md:p-8 relative pl-16 md:pl-20">
           <div className="max-w-7xl mx-auto">
