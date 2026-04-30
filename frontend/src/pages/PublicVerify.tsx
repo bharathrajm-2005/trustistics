@@ -132,7 +132,7 @@ export function PublicVerify() {
       setLoading(true);
       setError(false);
       try {
-        const response = await axios.get(`http://localhost:8000/api/verification/${shipmentId}`);
+        const response = await axios.get(`http://${window.location.hostname}:8000/api/verify/${shipmentId}`);
         if (response.data.success) {
           setData(response.data.data);
         } else {

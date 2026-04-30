@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Badge, RiskBadge, ProgressTracker } from '../../components/ui';
-import { Truck, MapPin, Package, ThermometerSnowflake, Thermometer, Navigation, Loader2, ChevronDown, ChevronUp, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Truck, MapPin, Package, ThermometerSnowflake, Navigation, Loader2, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Cpu } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { listShipments, recordHandoff, logTemperature, type BackendShipment } from '../../api/shipmentApi';
+import { listShipments, recordHandoff, getLiveTracking, type BackendShipment } from '../../api/shipmentApi';
 
 export function DriverManifest() {
   const vehicleId = "TRK-8842-REF";
@@ -12,14 +12,15 @@ export function DriverManifest() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
-  // Inline form state
-  const [actionType, setActionType] = useState<'temp' | 'handoff' | null>(null);
+  // Inline form state — temp logging removed (IoT sensor only)
+  const [actionType, setActionType] = useState<'handoff' | null>(null);
   const [formLocation, setFormLocation] = useState('');
-  const [formTemp, setFormTemp] = useState('');
   const [formToParty, setFormToParty] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionResult, setActionResult] = useState<{ id: string; msg: string } | null>(null);
+  // Live IoT reading per expanded shipment
+  const [liveReadings, setLiveReadings] = useState<Record<string, any>>({});
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -42,7 +43,7 @@ export function DriverManifest() {
 
   const activeManifest = shipments.filter(s => s.status !== 'DELIVERED' && s.status !== 'REJECTED');
 
-  const handleExpand = (id: string) => {
+  const handleExpand = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null);
       setActionType(null);
@@ -50,33 +51,19 @@ export function DriverManifest() {
       setExpandedId(id);
       setActionType(null);
       setFormLocation('');
-      setFormTemp('');
       setFormToParty('');
       setFormNotes('');
       setActionResult(null);
+      // Fetch live IoT reading for this shipment
+      try {
+        const res = await getLiveTracking(id);
+        if (res.success && res.data) {
+          setLiveReadings(prev => ({ ...prev, [id]: res.data }));
+        }
+      } catch { /* silent */ }
     }
   };
 
-  const handleLogTemp = async (shipmentId: string) => {
-    if (!formTemp || !formLocation) return;
-    setSubmitting(true);
-    try {
-      await logTemperature(shipmentId, {
-        temperature_celsius: parseFloat(formTemp),
-        location: formLocation,
-        logged_by: driverName,
-      });
-      setActionResult({ id: shipmentId, msg: `✔ Temperature ${formTemp}°C logged at ${formLocation}` });
-      setFormTemp('');
-      setFormLocation('');
-      setActionType(null);
-      load(true);
-    } catch (err: any) {
-      setActionResult({ id: shipmentId, msg: `✖ Failed: ${err.message}` });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleHandoff = async (shipmentId: string) => {
     if (!formLocation || !formToParty) return;
@@ -89,17 +76,9 @@ export function DriverManifest() {
         notes: formNotes || undefined,
         signed_by: driverName,
       });
-      if (formTemp) {
-        await logTemperature(shipmentId, {
-          temperature_celsius: parseFloat(formTemp),
-          location: formLocation,
-          logged_by: driverName,
-        });
-      }
       setActionResult({ id: shipmentId, msg: `✔ Handoff to ${formToParty} recorded. TX: ${res.data?.blockchain_tx || 'N/A'}` });
       setFormLocation('');
       setFormToParty('');
-      setFormTemp('');
       setFormNotes('');
       setActionType(null);
       load(true);
@@ -223,16 +202,44 @@ export function DriverManifest() {
                   </div>
                 )}
 
-                {/* Quick Action Buttons */}
+                {/* Live IoT Sensor Reading */}
+                {liveReadings[shipment.shipment_id] ? (
+                  <div className={`mb-4 p-3 rounded-lg border flex items-center gap-3 ${
+                    liveReadings[shipment.shipment_id].is_breach
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-emerald-50 border-emerald-200'
+                  }`}>
+                    <Cpu className={`w-5 h-5 shrink-0 ${
+                      liveReadings[shipment.shipment_id].is_breach ? 'text-red-500' : 'text-emerald-600'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Live IoT Reading</p>
+                      <p className={`font-bold text-lg ${
+                        liveReadings[shipment.shipment_id].is_breach ? 'text-red-600' : 'text-emerald-700'
+                      }`}>
+                        {liveReadings[shipment.shipment_id].temperature_celsius}°C
+                        {liveReadings[shipment.shipment_id].is_breach && (
+                          <span className="text-xs font-semibold ml-2 text-red-600">🚨 BREACH</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        📍 {liveReadings[shipment.shipment_id].location} &nbsp;•&nbsp;
+                        🔋 {liveReadings[shipment.shipment_id].battery_level?.toFixed(0)}%
+                      </p>
+                    </div>
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      SENSOR
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 flex items-center gap-2 text-sm text-gray-500">
+                    <Cpu className="w-4 h-4" /> Awaiting IoT sensor data for this shipment...
+                  </div>
+                )}
+
+                {/* Quick Action Buttons — temperature removed */}
                 <div className="flex gap-3 mb-4">
-                  <button
-                    onClick={() => { setActionType('temp'); setActionResult(null); }}
-                    className={`flex-1 py-2.5 text-center rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                      actionType === 'temp' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
-                    }`}
-                  >
-                    <Thermometer className="w-4 h-4" /> Log Temperature
-                  </button>
                   <button
                     onClick={() => { setActionType('handoff'); setActionResult(null); }}
                     className={`flex-1 py-2.5 text-center rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
@@ -249,31 +256,7 @@ export function DriverManifest() {
                   </Link>
                 </div>
 
-                {/* Inline Temperature Form */}
-                {actionType === 'temp' && (
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="number" step="0.1" placeholder="Temperature (°C)" value={formTemp}
-                        onChange={e => setFormTemp(e.target.value)}
-                        className="px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                      />
-                      <input
-                        type="text" placeholder="Location" value={formLocation}
-                        onChange={e => setFormLocation(e.target.value)}
-                        className="px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleLogTemp(shipment.shipment_id)}
-                      disabled={submitting || !formTemp || !formLocation}
-                      className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      {submitting ? 'Logging...' : 'Submit Temperature'}
-                    </button>
-                  </div>
-                )}
+
 
                 {/* Inline Handoff Form */}
                 {actionType === 'handoff' && (
@@ -290,18 +273,11 @@ export function DriverManifest() {
                         className="px-3 py-2 border border-teal-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="number" step="0.1" placeholder="Temp °C (optional)" value={formTemp}
-                        onChange={e => setFormTemp(e.target.value)}
-                        className="px-3 py-2 border border-teal-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white"
-                      />
-                      <input
-                        type="text" placeholder="Notes (optional)" value={formNotes}
-                        onChange={e => setFormNotes(e.target.value)}
-                        className="px-3 py-2 border border-teal-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white"
-                      />
-                    </div>
+                    <input
+                      type="text" placeholder="Notes (optional)" value={formNotes}
+                      onChange={e => setFormNotes(e.target.value)}
+                      className="w-full px-3 py-2 border border-teal-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+                    />
                     <button
                       onClick={() => handleHandoff(shipment.shipment_id)}
                       disabled={submitting || !formLocation || !formToParty}

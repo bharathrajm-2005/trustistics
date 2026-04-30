@@ -61,12 +61,12 @@ export function AnalyticsAudit() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
+      <div className="flex justify-between items-end mb-6 border-b border-white/10 pb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Analytics &amp; Blockchain Audit</h2>
-          <p className="text-gray-500 mt-1">System-wide performance and immutable logs</p>
+          <h2 className="text-2xl font-bold text-white">Analytics &amp; Blockchain Audit</h2>
+          <p className="text-gray-400 mt-1">System-wide performance and immutable logs</p>
         </div>
-        <button className="px-4 py-2 bg-teal-950 text-white text-sm font-medium rounded-lg hover:bg-teal-900 transition-colors">
+        <button className="px-4 py-2 bg-[#871364] text-white text-sm font-medium rounded-lg hover:bg-[#6d0f50] transition-colors">
           Export Report
         </button>
       </div>

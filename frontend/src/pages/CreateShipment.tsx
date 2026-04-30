@@ -248,7 +248,7 @@ export function CreateShipment() {
 
               <QRCodeSVG 
                 id="QRCodeSVG" 
-                value={`${window.location.origin}/verify/${result.shipment_id}`} 
+                value={`http://172.17.145.116:5173/verify/${result.shipment_id}`} 
                 size={200}
                 level="H"
                 includeMargin={false}

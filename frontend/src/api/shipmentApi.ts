@@ -62,7 +62,11 @@ export interface TemperatureLogPayload {
   location?: string;
   latitude?: number;
   longitude?: number;
-  logged_by: string;
+  logged_by?: string;
+  source?: 'IOT_SENSOR' | 'MANUAL';
+  device_id?: string;
+  battery_level?: number;
+  timestamp?: string;
 }
 
 export interface HandoffPayload {
@@ -204,6 +208,19 @@ export async function logTemperature(shipmentId: string, payload: TemperatureLog
 
 export async function getTemperatureLogs(shipmentId: string): Promise<ApiEnvelope> {
   const url = `/api/tracking/${shipmentId}/temperature`;
+  log('GET', url);
+  try {
+    const res = await api.get(url);
+    logResponse('GET', url, res.data);
+    return res.data;
+  } catch (err: any) {
+    logError('GET', url, err);
+    throw err;
+  }
+}
+
+export async function getLiveTracking(shipmentId: string): Promise<ApiEnvelope> {
+  const url = `/api/tracking/${shipmentId}/temperature/live`;
   log('GET', url);
   try {
     const res = await api.get(url);

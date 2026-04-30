@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Badge, RiskBadge, ProgressTracker } from '../components/ui';
-import { MapPin, QrCode, Search, Thermometer, Clock, Loader2, CloudRain, AlertTriangle } from 'lucide-react';
+import { MapPin, QrCode, Search, Thermometer, Clock, Loader2, CloudRain, AlertTriangle, Cpu, Battery, Wifi, WifiOff } from 'lucide-react';
 import { formatDistanceToNow, parseISO, format } from 'date-fns';
-import { getShipment, getTemperatureLogs, getRouteForecast, type BackendShipment } from '../api/shipmentApi';
+import { getShipment, getTemperatureLogs, getRouteForecast, getLiveTracking, type BackendShipment } from '../api/shipmentApi';
 
 
 export function LiveTracking() {
@@ -14,9 +14,12 @@ export function LiveTracking() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<BackendShipment | null>(null);
   const [tempLogs, setTempLogs] = useState<any[]>([]);
+  const [liveReading, setLiveReading] = useState<any>(null);
+  const [liveConnected, setLiveConnected] = useState(false);
   const [routeForecast, setRouteForecast] = useState<any[]>([]);
   const [loadingForecast, setLoadingForecast] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveShipmentId, setLiveShipmentId] = useState('');
 
 
   useEffect(() => {
@@ -31,28 +34,20 @@ export function LiveTracking() {
       const res = await getShipment(id);
       if (res.success && res.data) {
         setData(res.data);
-        // Also fetch temperature logs
+        setLiveShipmentId(id);
         const tempRes = await getTemperatureLogs(id).catch(() => null);
         if (tempRes?.success) setTempLogs(tempRes.data || []);
-        // Fetch forecast
         setLoadingForecast(true);
         try {
           const forecastRes = await getRouteForecast(id);
-          if (forecastRes.success) {
-            setRouteForecast(forecastRes.data || []);
-          }
-        } catch (fErr) {
-          console.error("Failed to fetch forecast", fErr);
-        } finally {
-          setLoadingForecast(false);
-        }
+          if (forecastRes.success) setRouteForecast(forecastRes.data || []);
+        } catch { /* silent */ } finally { setLoadingForecast(false); }
       } else {
         setError('Shipment not found');
         setData(null);
         setRouteForecast([]);
       }
     } catch (err: any) {
-
       setError(err?.response?.data?.message || 'Failed to fetch shipment');
       setData(null);
     } finally {
@@ -60,7 +55,31 @@ export function LiveTracking() {
     }
   };
 
-  const latestTemp = tempLogs.length > 0 ? tempLogs[0] : null;
+  // Poll live reading + temp logs every 30 s when a shipment is loaded
+  useEffect(() => {
+    if (!liveShipmentId) return;
+    const fetchLive = async () => {
+      try {
+        const res = await getLiveTracking(liveShipmentId);
+        if (res.success && res.data) {
+          setLiveReading(res.data);
+          setLiveConnected(true);
+        } else {
+          setLiveConnected(false);
+        }
+      } catch { setLiveConnected(false); }
+      // Also refresh the log list so new sensor pushes appear
+      try {
+        const logRes = await getTemperatureLogs(liveShipmentId);
+        if (logRes.success) setTempLogs(logRes.data || []);
+      } catch { /* silent */ }
+    };
+    fetchLive();
+    const id = setInterval(fetchLive, 30000);
+    return () => clearInterval(id);
+  }, [liveShipmentId]);
+
+  const latestTemp = liveReading ?? (tempLogs.length > 0 ? tempLogs[0] : null);
   const currentTemp = latestTemp?.temperature_celsius ?? 0;
   const tempMin = data?.min_temp_celsius ?? 2;
   const tempMax = data?.max_temp_celsius ?? 8;
@@ -219,44 +238,183 @@ export function LiveTracking() {
 
           <div className="space-y-6">
 
+            {/* ── Dynamic Live IoT Temperature Panel ── */}
             <Card className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Thermometer className="w-5 h-5 text-gray-400" /> Temperature Monitor
-              </h3>
-              
-              <div className="flex justify-center mb-6">
-                <div className="relative w-40 h-40 flex items-center justify-center rounded-full border-[12px] border-gray-100">
-                  <div className={`absolute inset-0 rounded-full border-[12px] border-transparent border-t-teal-500 border-r-teal-500 transform rotate-45`}></div>
-                  <div className="text-center">
-                    <span className={`text-4xl font-bold ${currentTemp > tempMax || currentTemp < tempMin ? 'text-red-500' : 'text-gray-900'}`}>
-                      {latestTemp ? `${currentTemp}°` : 'N/A'}
-                    </span>
-                    <span className="block text-xs text-gray-500 mt-1">{latestTemp ? 'Latest' : 'No data'}</span>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Thermometer className="w-5 h-5 text-gray-400" /> Temperature Monitor
+                </h3>
+                {liveShipmentId && (
+                  <span className={`flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    liveConnected
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      liveConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+                    }`} />
+                    {liveConnected ? 'Live' : 'Waiting'}
+                  </span>
+                )}
               </div>
-              
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-500">Min: <strong className="text-gray-900">{tempMin}°</strong></span>
-                <span className="text-gray-500">Max: <strong className="text-gray-900">{tempMax}°</strong></span>
-              </div>
-              
-              {latestTemp && (currentTemp > tempMax || currentTemp < tempMin) && (
-                <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100 flex items-start gap-2">
-                  <div className="w-2 h-2 mt-1.5 rounded-full bg-red-500 animate-pulse shrink-0"></div>
-                  Temperature breach detected! Outside safe operating range.
-                </div>
-              )}
 
-              {tempLogs.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="text-xs font-medium text-gray-500">Recent Readings ({tempLogs.length})</p>
-                  {tempLogs.slice(0, 5).map((log: any, i: number) => (
-                    <div key={i} className="flex justify-between text-xs text-gray-600 py-1 border-b border-gray-50">
-                      <span className={log.is_breach ? 'text-red-600 font-medium' : ''}>{log.temperature_celsius}°C</span>
-                      <span>{log.location || 'N/A'}</span>
+              {liveReading ? (() => {
+                // ── Gauge math ──────────────────────────────────────────────
+                const temp = liveReading.temperature_celsius;
+                const safeMin = data?.min_temp_celsius ?? tempMin;
+                const safeMax = data?.max_temp_celsius ?? tempMax;
+                const breach = liveReading.is_breach;
+                // Map temperature onto 0-100 scale within a ±30% margin outside safe range
+                const rangeSpan = safeMax - safeMin;
+                const margin = rangeSpan * 0.4;
+                const displayMin = safeMin - margin;
+                const displayMax = safeMax + margin;
+                const fraction = Math.min(1, Math.max(0, (temp - displayMin) / (displayMax - displayMin)));
+                // SVG arc: 240° sweep, starting from 150°
+                const radius = 54;
+                const cx = 70; const cy = 70;
+                const startAngle = 150; const sweepAngle = 240;
+                const toRad = (d: number) => (d * Math.PI) / 180;
+                const arcX = (pct: number) => cx + radius * Math.cos(toRad(startAngle + sweepAngle * pct));
+                const arcY = (pct: number) => cy + radius * Math.sin(toRad(startAngle + sweepAngle * pct));
+                const arcPath = (from: number, to: number, color: string) => {
+                  const large = (to - from) * sweepAngle > 180 ? 1 : 0;
+                  return `M ${arcX(from)} ${arcY(from)} A ${radius} ${radius} 0 ${large} 1 ${arcX(to)} ${arcY(to)}`;
+                };
+                return (
+                  <div>
+                    {/* SVG Gauge */}
+                    <div className="flex justify-center mb-2">
+                      <svg width="140" height="100" viewBox="0 0 140 100">
+                        {/* background track */}
+                        <path d={arcPath(0, 1, '')} stroke="#e5e7eb" strokeWidth="10" fill="none" strokeLinecap="round" />
+                        {/* colored fill up to current temp */}
+                        <path
+                          d={arcPath(0, fraction, '')}
+                          stroke={breach ? '#ef4444' : '#10b981'}
+                          strokeWidth="10" fill="none" strokeLinecap="round"
+                          style={{ transition: 'all 0.8s ease' }}
+                        />
+                        {/* safe-min marker */}
+                        <circle
+                          cx={arcX((safeMin - displayMin) / (displayMax - displayMin))}
+                          cy={arcY((safeMin - displayMin) / (displayMax - displayMin))}
+                          r="4" fill="#6366f1"
+                        />
+                        {/* safe-max marker */}
+                        <circle
+                          cx={arcX((safeMax - displayMin) / (displayMax - displayMin))}
+                          cy={arcY((safeMax - displayMin) / (displayMax - displayMin))}
+                          r="4" fill="#6366f1"
+                        />
+                        {/* center temperature text */}
+                        <text x="70" y="65" textAnchor="middle"
+                          fontSize="22" fontWeight="800"
+                          fill={breach ? '#ef4444' : '#111827'}>
+                          {temp}°
+                        </text>
+                        <text x="70" y="80" textAnchor="middle" fontSize="8" fill="#9ca3af">
+                          {breach ? 'BREACH' : 'SAFE'}
+                        </text>
+                      </svg>
                     </div>
-                  ))}
+
+                    {/* Safe range */}
+                    <div className="flex justify-between text-xs text-gray-500 mb-3 px-1">
+                      <span>Safe Min: <strong className="text-indigo-600">{safeMin}°C</strong></span>
+                      <span>Safe Max: <strong className="text-indigo-600">{safeMax}°C</strong></span>
+                    </div>
+
+                    {/* Breach banner */}
+                    {breach && (
+                      <div className="mb-3 p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        Temperature breach! {temp}°C is outside safe range ({safeMin}°C – {safeMax}°C)
+                      </div>
+                    )}
+
+                    {/* IoT Metadata */}
+                    <div className="space-y-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg p-3 border border-gray-100">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 flex items-center gap-1"><Cpu className="w-3 h-3" /> Device</span>
+                        <span className="font-mono font-medium">{liveReading.device_id || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</span>
+                        <span className="font-medium">{liveReading.location || 'N/A'}</span>
+                      </div>
+                      {liveReading.latitude && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">GPS</span>
+                          <span className="font-mono text-[10px]">{liveReading.latitude?.toFixed(4)}, {liveReading.longitude?.toFixed(4)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 flex items-center gap-1"><Battery className="w-3 h-3" /> Battery</span>
+                        <span className={`font-medium ${
+                          (liveReading.battery_level ?? 100) < 20 ? 'text-red-600' :
+                          (liveReading.battery_level ?? 100) < 50 ? 'text-amber-600' : 'text-emerald-600'
+                        }`}>{liveReading.battery_level?.toFixed(1) ?? 'N/A'}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Updated</span>
+                        <span>{formatDistanceToNow(new Date(liveReading.logged_at), { addSuffix: true })}</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-gray-200">
+                        <span className="text-gray-400">Source</span>
+                        {liveReading.source === 'IOT_SENSOR' ? (
+                          <span className="flex items-center gap-1 text-emerald-700 font-semibold"><Wifi className="w-3 h-3" /> IOT SENSOR</span>
+                        ) : (
+                          <span className="text-amber-700 font-semibold">MANUAL</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent Readings */}
+                    {tempLogs.length > 0 && (
+                      <div className="mt-4 space-y-1.5">
+                        <p className="text-xs font-semibold text-gray-500">Recent Readings ({tempLogs.length})</p>
+                        {tempLogs.slice(0, 5).map((log: any, i: number) => (
+                          <div key={i} className={`flex justify-between items-center text-xs py-1.5 px-2 rounded border ${
+                            log.is_breach ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'
+                          }`}>
+                            <span className={`font-bold ${log.is_breach ? 'text-red-600' : 'text-gray-800'}`}>
+                              {log.temperature_celsius}°C
+                            </span>
+                            <span className="text-gray-500 truncate max-w-[70px]">{log.location || 'N/A'}</span>
+                            {log.source === 'IOT_SENSOR' ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">Sensor</span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">Manual</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (
+                // ── No live data yet ──
+                <div className="text-center py-6">
+                  <div className="relative w-32 h-24 mx-auto mb-3">
+                    <svg width="128" height="96" viewBox="0 0 140 100">
+                      <path
+                        d={`M ${70 + 54 * Math.cos((150 * Math.PI) / 180)} ${70 + 54 * Math.sin((150 * Math.PI) / 180)} A 54 54 0 1 1 ${70 + 54 * Math.cos((30 * Math.PI) / 180)} ${70 + 54 * Math.sin((30 * Math.PI) / 180)}`}
+                        stroke="#e5e7eb" strokeWidth="10" fill="none" strokeLinecap="round"
+                      />
+                      <text x="70" y="70" textAnchor="middle" fontSize="12" fill="#9ca3af" fontWeight="600">Waiting</text>
+                      <text x="70" y="82" textAnchor="middle" fontSize="8" fill="#d1d5db">for sensor</text>
+                    </svg>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500 px-2 mb-2">
+                    <span>Min: <strong>{tempMin}°C</strong></span>
+                    <span>Max: <strong>{tempMax}°C</strong></span>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {liveShipmentId
+                      ? 'Run the IoT simulator to push live readings'
+                      : 'Search for a shipment to see live data'}
+                  </p>
                 </div>
               )}
             </Card>

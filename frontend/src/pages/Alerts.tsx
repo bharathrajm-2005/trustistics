@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Badge } from '../components/ui';
-import { BellRing, Check, AlertTriangle, Loader2, CloudRain } from 'lucide-react';
+import { BellRing, Check, AlertTriangle, Loader2, CloudRain, Cpu } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { getAlerts, resolveAlert } from '../api/shipmentApi';
 
@@ -94,8 +94,17 @@ export function Alerts() {
                         <h3 className={`font-semibold ${alert.resolved ? 'text-gray-700' : 'text-gray-900'}`}>{alert.alert_type}</h3>
                         <Badge variant={alert.resolved ? 'default' : alert.alert_type === 'Climate Risk' ? 'info' : 'danger'}>{alert.resolved ? 'Resolved' : 'Active'}</Badge>
                         {alert.severity && <Badge variant={alert.severity === 'CRITICAL' && alert.alert_type !== 'Climate Risk' ? 'danger' : 'default'}>{alert.severity}</Badge>}
+                        {/* IoT source badge */}
+                        {alert.source === 'IOT_SENSOR' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <Cpu className="w-2.5 h-2.5" /> IOT SENSOR
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">Shipment: <span className="font-medium">{alert.shipment_id}</span></p>
+                      <p className="text-sm text-gray-600 mb-1">Shipment: <span className="font-medium">{alert.shipment_id}</span></p>
+                      {alert.device_id && (
+                        <p className="text-xs text-gray-500 mb-1 font-mono">Device: {alert.device_id}</p>
+                      )}
                       <p className="text-sm text-gray-800 bg-white p-2 rounded border border-gray-100 inline-block">
                         {alert.message}
                       </p>

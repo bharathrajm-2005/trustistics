@@ -69,7 +69,11 @@ class TemperatureLogCreate(BaseModel):
     location: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    logged_by: str
+    logged_by: Optional[str] = "MANUAL"
+    source: Optional[str] = "MANUAL"          # "IOT_SENSOR" or "MANUAL"
+    device_id: Optional[str] = None
+    battery_level: Optional[float] = None
+    timestamp: Optional[str] = None           # ISO timestamp from sensor; uses server time if absent
 
 class HandoffCreate(BaseModel):
     from_party: str

@@ -16,40 +16,54 @@ def full_verify(shipment_id: str) -> dict:
     checks = {}
     doc_result = verify_all_documents(shipment_id)
     if doc_result["status"] == "NO_DOCUMENTS":
-        checks["document_check"] = "NO_DOCUMENTS"; reasons.append("No documents uploaded")
+        # No documents is perfectly fine — not a flag
+        checks["document_check"] = "NO_DOCUMENTS"
     elif doc_result["status"] == "FAIL":
-        checks["document_check"] = "FAIL"; reasons.append(f"{doc_result['failed']} document(s) failed hash verification")
+        # Only flag if documents exist AND they are tampered
+        checks["document_check"] = "FAIL"
+        reasons.append(f"{doc_result['failed']} document(s) failed hash/blockchain verification — possible tampering")
     else:
         checks["document_check"] = "PASS"
+
     custody = validate_custody_chain(shipment_id)
     if custody["status"] == "NO_HANDOFFS":
-        checks["custody_check"] = "NO_HANDOFFS"; reasons.append("No custody handoffs recorded")
+        # No handoffs yet is fine — shipment may just have been created
+        checks["custody_check"] = "NO_HANDOFFS"
     elif custody["status"] == "FAIL":
+        # Only flag on actual gaps/mismatches in an existing chain
         checks["custody_check"] = "FAIL"
         for issue in custody["issues"]: reasons.append(f"Custody: {issue}")
     else:
         checks["custody_check"] = "PASS"
+
     temp = get_breach_summary(shipment_id)
     if temp["breach_count"] > 0:
-        checks["temperature_check"] = "BREACH_DETECTED"; reasons.append(f"{temp['breach_count']} temperature breach(es)")
+        checks["temperature_check"] = "BREACH_DETECTED"
+        reasons.append(f"{temp['breach_count']} temperature breach(es) detected by sensor")
     elif temp["total_readings"] == 0:
-        checks["temperature_check"] = "NO_DATA"; reasons.append("No temperature readings")
+        # No readings yet — IoT simulator not started; informational only
+        checks["temperature_check"] = "NO_DATA"
     else:
         checks["temperature_check"] = "PASS"
+
     risk = compute_and_save_risk(shipment_id)
     if risk["score"] > 70: reasons.append(f"Risk score {risk['score']}/100 (HIGH)")
-    
-    # Get actual data for the public page
+
+    # FLAGGED only when there is real evidence of tampering or breach
+    verdict = "FLAGGED" if any([
+        checks.get("document_check") == "FAIL",   # tampered documents
+        checks.get("custody_check") == "FAIL",    # broken custody chain
+        checks.get("temperature_check") == "BREACH_DETECTED",  # temp breach
+        risk["score"] > 70,
+    ]) else "APPROVED"
+
+    # Fetch real records for the public verify page
     from backend.services.database import temperature_logs, documents as docs_col, handoffs as handoffs_col, alerts as alerts_col
-    
-    # Fetch real records from collections
     real_handoffs = list(handoffs_col.find({"shipment_id": shipment_id}, {"_id": 0}).sort("timestamp", 1))
     all_logs = list(temperature_logs.find({"shipment_id": shipment_id}, {"_id": 0}).sort("logged_at", 1))
     all_docs = list(docs_col.find({"shipment_id": shipment_id}, {"_id": 0}))
     climate_alerts = list(alerts_col.find({"shipment_id": shipment_id, "alert_type": "Climate Risk"}, {"_id": 0}))
-    
-    verdict = "FLAGGED" if any([checks.get("document_check") == "FAIL", checks.get("custody_check") == "FAIL", risk["score"] > 70]) else "APPROVED"
-    
+
     return {
         "shipment_id": shipment_id, 
         "verdict": verdict, 
