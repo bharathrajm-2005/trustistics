@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { Card } from '../components/ui';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, PackagePlus, AlertTriangle } from 'lucide-react';
-import { createShipment, type CreateShipmentResponse } from '../api/shipmentApi';
+import { Download, PackagePlus, AlertTriangle, CloudRain, Wind, Droplets, Thermometer } from 'lucide-react';
+import { createShipment, getDispatchWeatherCheck, type CreateShipmentResponse } from '../api/shipmentApi';
+
 
 export function CreateShipment() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CreateShipmentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+
 
   // Form state
   const [product, setProduct] = useState('');
@@ -31,11 +35,28 @@ export function CreateShipment() {
         product,
         origin,
         destination,
+        min_temp_celsius: minTemp ? parseFloat(minTemp) : undefined,
+        max_temp_celsius: maxTemp ? parseFloat(maxTemp) : undefined,
       });
 
       if (response.success) {
         setResult(response.data);
+        
+        // Fetch weather check
+        setLoadingWeather(true);
+        try {
+          const weatherRes = await getDispatchWeatherCheck(shipmentId);
+          if (weatherRes.success) {
+            setWeatherData(weatherRes.data);
+          }
+        } catch (wErr) {
+          console.error("Failed to fetch weather", wErr);
+        } finally {
+          setLoadingWeather(false);
+        }
+        
       } else {
+
         setError(response.error || response.message || 'Unknown error');
       }
     } catch (err: any) {
@@ -157,7 +178,74 @@ export function CreateShipment() {
               </p>
             </div>
             
+            {loadingWeather ? (
+              <div className="w-full max-w-md p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
+                <p className="text-sm text-gray-500 animate-pulse">Checking local weather conditions...</p>
+              </div>
+            ) : weatherData ? (
+              <div className="w-full max-w-md space-y-4">
+                {weatherData.assessment.risk_level === 'high' && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-center">
+                    <p className="font-bold text-red-700 flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      ⚠ Weather Risk Detected — Review conditions before dispatching
+                    </p>
+                  </div>
+                )}
+                {weatherData.assessment.risk_level === 'medium' && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                    <p className="font-bold text-amber-700 flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      ⚠ Medium Risk — Monitor temperature closely
+                    </p>
+                  </div>
+                )}
+                {weatherData.assessment.risk_level === 'low' && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center">
+                    <p className="font-bold text-green-700 flex items-center justify-center gap-2">
+                      <CloudRain className="w-5 h-5" />
+                      ✓ Weather conditions are safe for dispatch
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between border-b pb-3 mb-3">
+                    <h4 className="font-semibold text-gray-900">Origin Weather: {weatherData.weather.location}</h4>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full uppercase ${weatherData.assessment.risk_level === 'high' ? 'bg-red-100 text-red-700' : weatherData.assessment.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                      {weatherData.assessment.risk_level} Risk
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-700 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Thermometer className="w-4 h-4 text-blue-500" />
+                      <span>{weatherData.weather.temperature}°C ({weatherData.weather.description})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Wind className="w-4 h-4 text-gray-500" />
+                      <span>{weatherData.weather.wind_speed} m/s wind</span>
+                    </div>
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Droplets className="w-4 h-4 text-blue-400" />
+                      <span>{weatherData.weather.humidity}% humidity</span>
+                    </div>
+                  </div>
+                  <p className="font-medium text-sm text-gray-900 border-t pt-2 mt-2">
+                    Recommendation: <span className="text-gray-600 font-normal">{weatherData.assessment.recommendation}</span>
+                  </p>
+                  {weatherData.assessment.reasons.length > 0 && (
+                    <ul className="text-xs text-red-600 mt-2 space-y-1 list-disc list-inside">
+                      {weatherData.assessment.reasons.map((r: string, i: number) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ) : null}
+            
             <div className="p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
+
               <QRCodeSVG 
                 id="QRCodeSVG" 
                 value={`${window.location.origin}/verify/${result.shipment_id}`} 
@@ -175,9 +263,10 @@ export function CreateShipment() {
                 <Download className="w-4 h-4" /> Download QR
               </button>
               <button 
-                onClick={() => { setResult(null); setProduct(''); setOrigin(''); setDestination(''); setBatchId(''); setMinTemp(''); setMaxTemp(''); setNotes(''); }}
+                onClick={() => { setResult(null); setWeatherData(null); setProduct(''); setOrigin(''); setDestination(''); setBatchId(''); setMinTemp(''); setMaxTemp(''); setNotes(''); }}
                 className="px-6 py-2.5 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors"
               >
+
                 Create Another
               </button>
             </div>

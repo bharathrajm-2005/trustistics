@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card } from '../components/ui';
+import { Card, RiskBadge } from '../components/ui';
 import { ShieldCheck, Search, FileText, Thermometer, Box, AlertTriangle, ShieldAlert, CheckCircle } from 'lucide-react';
 import { fullVerify, type VerificationResult } from '../api/shipmentApi';
 
@@ -141,8 +141,10 @@ export function FinalVerification() {
               </div>
             )}
 
-            <div className="mt-4 text-center text-sm text-gray-500">
-              Risk Score: <span className="font-bold">{result.risk_score ?? 'N/A'}</span>/100 • Verified at: {result.verified_at || 'N/A'}
+            <div className="mt-4 flex items-center justify-center gap-3 text-sm text-gray-500">
+              <span>Risk Level:</span>
+              <RiskBadge score={result.risk_score ?? 0} />
+              <span>• Verified at: {result.verified_at || 'N/A'}</span>
             </div>
             
             <div className="mt-8 flex justify-center">
@@ -200,8 +202,9 @@ export function FinalVerification() {
               </div>
             </div>
 
-            <div className="mt-4 text-center text-sm text-gray-500">
-              Risk Score: <span className="font-bold text-red-600">{result.risk_score ?? 'N/A'}</span>/100
+            <div className="mt-4 flex items-center justify-center gap-3 text-sm text-gray-500">
+              <span>Risk Level:</span>
+              <RiskBadge score={result.risk_score ?? 0} />
             </div>
             
             <div className="mt-8 flex justify-center gap-4">

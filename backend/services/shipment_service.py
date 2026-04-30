@@ -29,6 +29,10 @@ def create_shipment(payload: ShipmentCreate) -> dict:
         "product": payload.product,
         "origin": payload.origin,
         "destination": payload.destination,
+        "min_temp_celsius": payload.min_temp_celsius,
+        "max_temp_celsius": payload.max_temp_celsius,
+        "status": "CREATED",
+        "customs_status": None,
         "data_hash": data_hash,
         "blockchain_tx": bc_result.get("tx_hash"),
         "created_at": _utcnow(),
@@ -58,6 +62,7 @@ def create_shipment(payload: ShipmentCreate) -> dict:
         "blockchain_ready": blockchain.is_ready,
         "blockchain_error": bc_result.get("error") if not bc_result.get("success") else None
     }
+
 
 def list_shipments(status=None, goods_type=None, limit=50) -> list:
     query = {}

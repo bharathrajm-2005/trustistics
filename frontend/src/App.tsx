@@ -13,6 +13,7 @@ import { ShipmentTimeline } from './pages/ShipmentTimeline';
 import { Alerts } from './pages/Alerts';
 import { FinalVerification } from './pages/FinalVerification';
 import { AnalyticsAudit } from './pages/AnalyticsAudit';
+import { TamperDetection } from './pages/TamperDetection';
 
 import { DriverManifest } from './pages/roles/DriverManifest';
 import { DriverDashboard } from './pages/roles/DriverDashboard';
@@ -52,6 +53,7 @@ function App() {
             <Route path="/supplier/alerts" element={<Alerts />} />
             <Route path="/supplier/analytics" element={<AnalyticsAudit />} />
             <Route path="/supplier/verify" element={<FinalVerification />} />
+            <Route path="/supplier/tamper" element={<TamperDetection />} />
 
             {/* Driver Routes */}
             <Route path="/driver" element={<DriverManifest />} />

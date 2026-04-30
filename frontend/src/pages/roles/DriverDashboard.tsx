@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Card } from '../../components/ui';
-import { QrCode, ClipboardList, MapPin, Thermometer, AlertTriangle } from 'lucide-react';
-import { recordHandoff, logTemperature } from '../../api/shipmentApi';
+import { QrCode, ClipboardList, MapPin, Thermometer, AlertTriangle, Box, CloudRain } from 'lucide-react';
+import { recordHandoff, logTemperature, checkTransitWeather } from '../../api/shipmentApi';
+
 
 export function DriverDashboard() {
   const [shipmentId, setShipmentId] = useState('');
@@ -9,7 +10,12 @@ export function DriverDashboard() {
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState('');
   const [temperature, setTemperature] = useState('');
+  const [receiverParty, setReceiverParty] = useState('Local Warehouse');
+  const [weatherAlert, setWeatherAlert] = useState<any>(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+
   const [notes, setNotes] = useState('');
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -23,11 +29,12 @@ export function DriverDashboard() {
       // Record handoff
       const handoffRes = await recordHandoff(shipmentId, {
         from_party: 'Driver',
-        to_party: 'Next Handler',
+        to_party: receiverParty,
         location,
         notes: notes || undefined,
-        signed_by: 'Driver',
+        signed_by: 'Authorized Driver',
       });
+
 
       // Log temperature
       if (temperature) {
@@ -36,7 +43,21 @@ export function DriverDashboard() {
           location,
           logged_by: 'Driver',
         });
+        
+        // Check weather risk at current location
+        setLoadingWeather(true);
+        try {
+          const wRes = await checkTransitWeather(shipmentId, location, parseFloat(temperature));
+          if (wRes.success) {
+            setWeatherAlert(wRes.data);
+          }
+        } catch (wErr) {
+          console.error("Transit weather check failed", wErr);
+        } finally {
+          setLoadingWeather(false);
+        }
       }
+
 
       if (handoffRes.success) {
         setSuccess(`Handoff anchored to blockchain! TX: ${handoffRes.data?.blockchain_tx || 'N/A'}`);
@@ -108,13 +129,50 @@ export function DriverDashboard() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Box className="w-4 h-4 text-blue-500" /> Receiver Party
+              </label>
+              <select 
+                value={receiverParty} 
+                onChange={e => setReceiverParty(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none bg-white"
+              >
+                <option value="Local Warehouse">Local Warehouse</option>
+                <option value="Customs Checkpoint">Customs Checkpoint</option>
+                <option value="Delivery Partner">Delivery Partner</option>
+                <option value="Final Destination">Final Destination</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Thermometer className="w-4 h-4" /> Current Temperature (°C)
               </label>
               <input required type="number" step="0.1" value={temperature} onChange={e => setTemperature(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" placeholder="e.g. -70" />
             </div>
           </div>
+          
+          {loadingWeather && <p className="text-sm text-gray-500 animate-pulse text-center">Checking local weather...</p>}
+          {weatherAlert && (
+            <div className={`p-4 rounded-xl border ${weatherAlert.assessment.risk_level === 'high' ? 'bg-red-50 border-red-200' : weatherAlert.assessment.risk_level === 'medium' ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <CloudRain className={`w-5 h-5 ${weatherAlert.assessment.risk_level === 'high' ? 'text-red-500' : weatherAlert.assessment.risk_level === 'medium' ? 'text-amber-500' : 'text-green-500'}`} />
+                <h4 className={`font-semibold ${weatherAlert.assessment.risk_level === 'high' ? 'text-red-900' : weatherAlert.assessment.risk_level === 'medium' ? 'text-amber-900' : 'text-green-900'}`}>
+                  Local Weather: {weatherAlert.weather.temperature}°C ({weatherAlert.weather.description})
+                </h4>
+              </div>
+              <p className={`text-sm ${weatherAlert.assessment.risk_level === 'high' ? 'text-red-700 font-medium' : weatherAlert.assessment.risk_level === 'medium' ? 'text-amber-700 font-medium' : 'text-green-700'}`}>
+                {weatherAlert.assessment.recommendation}
+              </p>
+              {weatherAlert.alert_created && (
+                <p className="text-xs font-bold text-red-600 mt-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Auto-alert created for Climate Risk
+                </p>
+              )}
+            </div>
+          )}
+
 
           <div className="space-y-2">
+
             <label className="text-sm font-medium text-gray-700">Condition Notes</label>
             <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" placeholder="Packaging intact, refrigeration unit stable..." />
             {error && <p className="text-sm text-red-600 mt-2 flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> {error}</p>}

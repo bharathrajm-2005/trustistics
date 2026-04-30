@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export type Role = 'Supplier' | 'Driver' | 'Warehouse Manager' | 'Customs Officer' | 'Customer' | null;
+export type Role = 'Supplier' | 'Driver' | 'Warehouse Manager' | 'Customs Officer' | 'Delivery Partner' | 'Customer' | null;
 
 interface AuthContextType {
   role: Role;
@@ -41,6 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           break;
         case 'Customs Officer':
           navigate('/customs');
+          break;
+        case 'Delivery Partner':
+          navigate('/driver'); // Fallback to driver dashboard for now
           break;
         case 'Customer':
           navigate('/login'); // Customer doesn't have a dashboard, they use verify/:id. We can just keep them here or redirect to a generic page.

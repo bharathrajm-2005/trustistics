@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card } from '../../components/ui';
 import { QrCode, Building2, Thermometer, Box, AlertTriangle } from 'lucide-react';
-import { addEvent, logTemperature } from '../../api/shipmentApi';
+import { addEvent, logTemperature, updateShipmentStatus, recordHandoff } from '../../api/shipmentApi';
 
 export function WarehouseDashboard() {
   const [shipmentId, setShipmentId] = useState('');
@@ -20,7 +20,17 @@ export function WarehouseDashboard() {
     setSuccess(null);
 
     try {
-      const eventRes = await addEvent(shipmentId, 'CUSTODY_HANDOFF', `Warehouse - ${storageUnit}`);
+      // Record handoff to Warehouse (triggers auto-status to IN_STORAGE)
+      const handoffRes = await recordHandoff(shipmentId, {
+        from_party: 'Driver',
+        to_party: 'Warehouse',
+        location: `Warehouse - ${storageUnit}`,
+        notes: notes || undefined,
+        signed_by: 'Warehouse',
+      });
+
+      // Also explicitly set status in case handoff party detection doesn't match
+      await updateShipmentStatus(shipmentId, 'IN_STORAGE', `Received at ${storageUnit}`);
 
       if (temperature) {
         await logTemperature(shipmentId, {
@@ -30,14 +40,14 @@ export function WarehouseDashboard() {
         });
       }
 
-      if (eventRes.success) {
-        setSuccess(`Intake anchored to blockchain! TX: ${eventRes.data?.tx_hash || 'N/A'}`);
+      if (handoffRes.success) {
+        setSuccess(`Intake anchored to blockchain! TX: ${handoffRes.data?.blockchain_tx || 'N/A'}`);
         setShipmentId('');
         setStorageUnit('');
         setTemperature('');
         setNotes('');
       } else {
-        setError(eventRes.error || 'Failed to record intake');
+        setError(handoffRes.error || 'Failed to record intake');
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || err.message || 'Network error');

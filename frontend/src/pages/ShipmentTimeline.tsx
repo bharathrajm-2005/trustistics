@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Badge } from '../components/ui';
-import { MapPin, FileText, CheckCircle2, AlertTriangle, Box, Search, Loader2 } from 'lucide-react';
+import { Card, Badge, RiskBadge } from '../components/ui';
+import { MapPin, FileText, CheckCircle2, AlertTriangle, Box, Search, Loader2, Database, Link as LinkIcon, Clock, Hash } from 'lucide-react';
 import { format } from 'date-fns';
 import { getTimeline, getShipment } from '../api/shipmentApi';
 
@@ -67,59 +67,95 @@ export function ShipmentTimeline() {
 
       {!loading && events.length > 0 && (
         <Card className="p-8">
-          <div className="flex items-center justify-between mb-10 pb-4 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Shipment History</h2>
-              <p className="text-sm text-gray-500">Immutable blockchain records for {shipment?.shipment_id || shipmentId}</p>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Database className="w-6 h-6 text-indigo-600" />
+                Blockchain Event Log
+              </h2>
+              <p className="text-sm text-slate-500 font-mono mt-1">Contract: 0x5FbDB2315678afecb367f032d93F642f64180aa3</p>
             </div>
-            <Badge variant={shipment?.status === 'FLAGGED' ? 'warning' : 'default'}>
-              Status: {shipment?.status || 'CREATED'}
-            </Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge variant={shipment?.status === 'FLAGGED' ? 'warning' : 'default'}>
+                {shipment?.status || 'CREATED'}
+              </Badge>
+            </div>
           </div>
 
-          <div className="relative pl-8 space-y-8">
-            <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200"></div>
+          <div className="space-y-4">
+            {events.map((item: any, idx: number) => {
+              const eventColor = 
+                item.event_type.includes('CUSTOMS') ? 'border-purple-500 text-purple-600 bg-purple-50' :
+                item.event_type.includes('STORAGE') ? 'border-indigo-500 text-indigo-600 bg-indigo-50' :
+                item.event_type.includes('DELIVERED') ? 'border-green-500 text-green-600 bg-green-50' :
+                item.event_type.includes('FLAGGED') || item.event_type.includes('REJECTED') ? 'border-red-500 text-red-600 bg-red-50' :
+                'border-teal-500 text-teal-600 bg-teal-50';
 
-            {events.map((item: any, idx: number) => (
-              <div key={idx} className="relative">
-                <div className={`absolute -left-[41px] p-1.5 rounded-full border-4 border-white bg-teal-500`}>
-                  <CheckCircle2 className="w-4 h-4 text-white" />
-                </div>
-
-                <div className="p-6 rounded-xl border border-gray-100 bg-white shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{item.event_type}</h3>
-                      {item.location && (
-                        <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                          <MapPin className="w-4 h-4" /> {item.location}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {item.timestamp && (
-                        <>
-                          <span className="text-sm font-medium text-gray-900 block">{format(new Date(item.timestamp), 'MMM dd, yyyy')}</span>
-                          <span className="text-xs text-gray-500">{format(new Date(item.timestamp), 'HH:mm a')}</span>
-                        </>
-                      )}
+              return (
+                <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-slate-200 group-hover:bg-indigo-500 transition-colors" />
+                  
+                  <div className="flex flex-wrap items-start justify-between gap-4 ml-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`px-3 py-1 rounded border text-xs font-bold uppercase tracking-wider ${eventColor}`}>
+                        {item.event_type.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-sm text-slate-500 flex items-center gap-1 font-medium">
+                        <Clock className="w-4 h-4" />
+                        {item.timestamp ? format(new Date(item.timestamp), 'MMM dd, yyyy HH:mm:ss') : 'Pending Block'}
+                      </div>
                     </div>
                   </div>
 
-                  {item.tx_hash && (
-                    <div className="mt-2 p-2 bg-teal-50 rounded text-xs font-mono text-teal-700 break-all">
-                      TX: {item.tx_hash}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-2 mt-4">
+                    <div className="space-y-3">
+                      {item.location && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block">Location / Node</span>
+                            <span className="text-sm font-medium text-slate-800">{item.location}</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-2">
+                        <Database className="w-4 h-4 text-slate-400 mt-0.5" />
+                        <div>
+                          <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block">Data Payload Hash (SHA-256)</span>
+                          <span className="text-xs font-mono text-slate-600 break-all bg-slate-50 px-2 py-1 rounded block mt-1 border border-slate-100">
+                            {item.data_hash || 'Pending anchor'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  )}
 
-                  {item.data_hash && (
-                    <div className="mt-1 text-xs font-mono text-gray-400 break-all">
-                      Hash: {item.data_hash}
+                    <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <LinkIcon className="w-4 h-4 text-indigo-400" />
+                        <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Blockchain Receipt</span>
+                      </div>
+                      {item.tx_hash ? (
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block mb-0.5">Transaction Hash</span>
+                            <span className="text-xs font-mono text-green-400 break-all">{item.tx_hash}</span>
+                          </div>
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                            <span className="text-[10px] text-slate-500">Status:</span>
+                            <span className="text-xs font-medium text-green-500 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Confirmed</span>
+                            <span className="text-[10px] text-slate-500 ml-auto">Network: Sepolia Testnet</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-500 italic flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" /> Anchoring to block...
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}

@@ -33,16 +33,44 @@ def get_documents(shipment_id: str) -> list:
     return list(documents.find({"shipment_id": shipment_id}, {"_id": 0}))
 
 def verify_document(shipment_id: str, doc_hash: str) -> dict:
+    print(f"DEBUG: Verifying Shipment: {shipment_id}, Hash: {doc_hash}")
     record = documents.find_one({"shipment_id": shipment_id, "sha256_hash": doc_hash})
+    
     if not record:
-        return {"verified": False, "reason": "Not found", "db_match": False, "blockchain_match": False}
+        # Check if maybe the shipment_id is the issue
+        any_doc = documents.find_one({"sha256_hash": doc_hash})
+        if any_doc:
+            print(f"DEBUG: Hash found but for DIFFERENT shipment: {any_doc['shipment_id']}")
+        else:
+            print(f"DEBUG: Hash {doc_hash} not found in DB at all.")
+        return {"verified": False, "reason": "Not found in Database", "db_match": False, "blockchain_match": False}
+
     file_path = Path(record["file_path"])
+    print(f"DEBUG: Looking for file at: {file_path}")
+    
     if not file_path.exists():
-        return {"verified": False, "reason": "File missing from disk", "db_match": True, "blockchain_match": False}
+        fallback_path = Path(UPLOAD_DIR) / shipment_id / record["filename"]
+        print(f"DEBUG: Primary path missing. Trying fallback: {fallback_path}")
+        if fallback_path.exists():
+            file_path = fallback_path
+        else:
+            return {"verified": False, "reason": f"File not found on disk at {file_path}", "db_match": True, "blockchain_match": False}
     recomputed = _sha256(file_path.read_bytes())
     db_match = recomputed == record["sha256_hash"]
     bc_match = blockchain.verify_hash(shipment_id, doc_hash)
-    return {"verified": db_match and bc_match, "filename": record["filename"],
+    
+    verified = db_match and bc_match
+    if not verified:
+        alerts.insert_one({
+            "shipment_id": shipment_id, 
+            "alert_type": AlertType.DOCUMENT_TAMPER,
+            "message": f"Tampering detected in {record['filename']}! Fingerprint mismatch.",
+            "severity": "CRITICAL", 
+            "resolved": False, 
+            "created_at": _utcnow(),
+        })
+        
+    return {"verified": verified, "filename": record["filename"],
             "stored_hash": record["sha256_hash"], "recomputed_hash": recomputed,
             "db_match": db_match, "blockchain_match": bc_match}
 

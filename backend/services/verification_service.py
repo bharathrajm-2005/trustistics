@@ -38,8 +38,57 @@ def full_verify(shipment_id: str) -> dict:
         checks["temperature_check"] = "PASS"
     risk = compute_and_save_risk(shipment_id)
     if risk["score"] > 70: reasons.append(f"Risk score {risk['score']}/100 (HIGH)")
+    
+    # Get actual data for the public page
+    from backend.services.database import temperature_logs, documents as docs_col, handoffs as handoffs_col, alerts as alerts_col
+    
+    # Fetch real records from collections
+    real_handoffs = list(handoffs_col.find({"shipment_id": shipment_id}, {"_id": 0}).sort("timestamp", 1))
+    all_logs = list(temperature_logs.find({"shipment_id": shipment_id}, {"_id": 0}).sort("logged_at", 1))
+    all_docs = list(docs_col.find({"shipment_id": shipment_id}, {"_id": 0}))
+    climate_alerts = list(alerts_col.find({"shipment_id": shipment_id, "alert_type": "Climate Risk"}, {"_id": 0}))
+    
     verdict = "FLAGGED" if any([checks.get("document_check") == "FAIL", checks.get("custody_check") == "FAIL", risk["score"] > 70]) else "APPROVED"
-    return {"shipment_id": shipment_id, "verdict": verdict, "reasons": reasons or ["All checks passed"],
-            "document_check": checks.get("document_check"), "custody_check": checks.get("custody_check"),
-            "temperature_check": checks.get("temperature_check"), "risk_score": risk["score"],
-            "verified_at": _utcnow().isoformat()}
+    
+    return {
+        "shipment_id": shipment_id, 
+        "verdict": verdict, 
+        "reasons": reasons or ["All checks passed"],
+        "document_check": checks.get("document_check"), 
+        "custody_check": checks.get("custody_check"),
+        "temperature_check": checks.get("temperature_check"), 
+        "risk_score": risk["score"],
+        "verified_at": _utcnow().isoformat(),
+        # Shipment status fields
+        "status": shipment.get("status", "CREATED"),
+        "customs_status": shipment.get("customs_status"),
+        "customs_location": shipment.get("customs_location"),
+        "customs_notes": shipment.get("customs_notes"),
+        "customs_officer": shipment.get("customs_officer"),
+        # Added for Public Verify page
+        "product": shipment.get("product"),
+        "origin": shipment.get("origin"),
+        "destination": shipment.get("destination"),
+        "createdAt": shipment.get("created_at"),
+        "safeMinTemp": shipment.get("min_temp_celsius", 2.0),
+        "safeMaxTemp": shipment.get("max_temp_celsius", 8.0),
+        "overallStatus": verdict.lower(),
+        "spoilageRisk": risk["score"],
+        "documents": [{"name": d["filename"], "hash": d["sha256_hash"], "verified": True} for d in all_docs],
+        "handoffs": [
+            {
+                "role": h.get("from_party", "Handler"), 
+                "handler": h.get("signed_by", "System"), 
+                "timestamp": h["timestamp"], 
+                "location": h.get("location"), 
+                "blockchainTx": h.get("blockchain_tx"),
+                "to_party": h.get("to_party")
+            } for h in real_handoffs
+        ],
+        "temperatureLogs": [{"timestamp": l["logged_at"].strftime("%H:%M") if l.get("logged_at") else "??:??", "temperature": l["temperature_celsius"]} for l in all_logs],
+        "flagReasons": reasons,
+        "climate_alerts": climate_alerts
+    }
+
+
+

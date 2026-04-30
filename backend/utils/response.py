@@ -1,5 +1,7 @@
 from typing import Any, Optional
 from datetime import datetime, timezone
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 def api_response(
     success: bool,
@@ -7,12 +9,15 @@ def api_response(
     data: Any = None,
     error: Any = None,
     mongo_status: bool = True,
-    blockchain_ready: bool = True
-) -> dict:
+    blockchain_ready: bool = True,
+    status_code: int = 200
+) -> JSONResponse:
     """
     Standard envelope format for all API returns across Trustistics.
+    Returns a FastAPI JSONResponse with the specified status code.
+    Uses jsonable_encoder to handle non-standard types like datetime or ObjectId.
     """
-    return {
+    content = {
         "success": success,
         "message": message,
         "data": data,
@@ -23,3 +28,4 @@ def api_response(
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     }
+    return JSONResponse(content=jsonable_encoder(content), status_code=status_code)

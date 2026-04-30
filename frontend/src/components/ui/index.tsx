@@ -23,3 +23,6 @@ export function Badge({ children, variant = 'default' }: { children: ReactNode, 
     </span>
   );
 }
+export * from './RiskBadge';
+export * from './ProgressTracker';
+export * from './StaggeredMenu';

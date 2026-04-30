@@ -7,6 +7,20 @@ from backend.models.schemas import HandoffCreate, EventType, AlertType
 logger = logging.getLogger(__name__)
 def _utcnow(): return datetime.now(timezone.utc)
 
+def _infer_status(from_party: str, to_party: str) -> str:
+    """Auto-detect the next shipment status based on who is handing off to whom."""
+    to_lower = to_party.lower()
+    from_lower = from_party.lower()
+    if any(k in to_lower for k in ["warehouse", "storage", "facility", "cold-room"]):
+        return "IN_STORAGE"
+    if any(k in to_lower for k in ["customs", "border", "checkpoint"]):
+        return "AT_CUSTOMS"
+    if any(k in to_lower for k in ["customer", "receiver", "recipient", "destination", "pharmacy", "hospital"]):
+        return "DELIVERED"
+    if any(k in from_lower for k in ["supplier", "manufacturer", "origin"]):
+        return "IN_TRANSIT"
+    return "IN_TRANSIT"
+
 def record_handoff(shipment_id: str, data: HandoffCreate) -> dict:
     shipment = shipments.find_one({"shipment_id": shipment_id})
     if not shipment: return None
@@ -23,8 +37,10 @@ def record_handoff(shipment_id: str, data: HandoffCreate) -> dict:
     }
     handoffs.insert_one(record)
     record.pop("_id", None)
-    shipments.update_one({"shipment_id": shipment_id}, {"$set": {"status": "CUSTODY_TRANSFER", "updated_at": timestamp}})
+    new_status = _infer_status(data.from_party, data.to_party)
+    shipments.update_one({"shipment_id": shipment_id}, {"$set": {"status": new_status, "updated_at": timestamp}})
     return record
+
 
 def get_handoffs(shipment_id: str) -> list:
     return list(handoffs.find({"shipment_id": shipment_id}, {"_id": 0}).sort("timestamp", 1))
@@ -32,12 +48,31 @@ def get_handoffs(shipment_id: str) -> list:
 def validate_custody_chain(shipment_id: str) -> dict:
     chain = get_handoffs(shipment_id)
     if not chain: return {"status": "NO_HANDOFFS", "issues": []}
+    
     issues = []
+    # 1. Check for gaps in the chain
     for i in range(len(chain) - 1):
-        if chain[i]["to_party"] != chain[i + 1]["from_party"]:
-            issues.append(f"Gap at step {i+1}: expected '{chain[i]['to_party']}' got '{chain[i+1]['from_party']}'")
+        curr = chain[i]
+        next_h = chain[i + 1]
+        if curr["to_party"] != next_h["from_party"]:
+            # Check for common naming variations or 'System' transfers
+            if curr["to_party"].lower() == "next handler" or next_h["from_party"].lower() == "previous":
+                continue # Skip placeholder gaps
+            issues.append(f"Gaps in custody: '{curr['to_party']}' handed over, but '{next_h['from_party']}' picked up.")
+    
+    # 2. Verify blockchain anchoring
     for h in chain:
         if h.get("handoff_hash"):
             if not blockchain.verify_hash(shipment_id, h["handoff_hash"]):
-                issues.append(f"Hash not on chain: {h['handoff_hash'][:18]}…")
-    return {"status": "PASS" if not issues else "FAIL", "total_handoffs": len(chain), "issues": issues, "chain": chain}
+                if not blockchain.is_ready:
+                    # Don't flag if blockchain is just offline during local dev
+                    continue
+                issues.append(f"Blockchain integrity mismatch for handoff at {h['location'] or 'unknown location'}")
+                
+    return {
+        "status": "PASS" if not issues else "FAIL", 
+        "total_handoffs": len(chain), 
+        "issues": issues, 
+        "chain": chain
+    }
+

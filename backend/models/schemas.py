@@ -9,6 +9,8 @@ def utcnow():
 class ShipmentStatus(str, Enum):
     CREATED = "CREATED"
     IN_TRANSIT = "IN_TRANSIT"
+    IN_STORAGE = "IN_STORAGE"
+    AT_CUSTOMS = "AT_CUSTOMS"
     CUSTODY_TRANSFER = "CUSTODY_TRANSFER"
     DELIVERED = "DELIVERED"
     FLAGGED = "FLAGGED"
@@ -26,6 +28,8 @@ class AlertType(str, Enum):
     DOCUMENT_TAMPER = "DOCUMENT_TAMPER"
     INCOMPLETE_HANDOFF = "INCOMPLETE_HANDOFF"
     HIGH_RISK_SCORE = "HIGH_RISK_SCORE"
+    CUSTOMS_HELD = "CUSTOMS_HELD"
+    CUSTOMS_REJECTED = "CUSTOMS_REJECTED"
 
 class EventType(str, Enum):
     GENESIS = "GENESIS"
@@ -39,6 +43,8 @@ class ShipmentCreate(BaseModel):
     product: str
     origin: str
     destination: str
+    min_temp_celsius: Optional[float] = 2.0
+    max_temp_celsius: Optional[float] = 8.0
 
 class EventCreate(BaseModel):
     event_type: str
@@ -71,3 +77,19 @@ class HandoffCreate(BaseModel):
     location: str
     notes: Optional[str] = None
     signed_by: str
+
+class CustomsClearanceCreate(BaseModel):
+    location: str
+    clearance_status: str  # Cleared / Held / Rejected
+    notes: Optional[str] = None
+    officer_name: Optional[str] = "Customs Officer"
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    role: str
+    name: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
