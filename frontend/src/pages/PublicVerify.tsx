@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
   ShieldCheck, ShieldAlert, CheckCircle, XCircle, 
-  MapPin, Clock, FileText, Loader2, Copy, Check, CloudRain
+  MapPin, Clock, FileText, Loader2, Copy, Check, CloudRain, AlertTriangle
 } from 'lucide-react';
 
 import { 
