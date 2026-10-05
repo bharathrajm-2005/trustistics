@@ -77,15 +77,8 @@
 
 <div align="center">
 
-![Solved](https://img.shields.io/badge/Solved-359-FFA116?style=for-the-badge&logo=leetcode&logoColor=white)
-![Easy](https://img.shields.io/badge/Easy-176-00B8A3?style=for-the-badge)
-![Medium](https://img.shields.io/badge/Medium-158-FFC01E?style=for-the-badge)
-![Hard](https://img.shields.io/badge/Hard-25-EF4743?style=for-the-badge)
-![Max Streak](https://img.shields.io/badge/Max%20Streak-39%20days-2CBB5D?style=for-the-badge)
-![Rating](https://img.shields.io/badge/Contest%20Rating-1414-0e75b6?style=for-the-badge)
-
 <a href="https://leetcode.com/u/bharath_1005/">
-  <img src="https://leetcard.jacoblin.cool/bharath_1005?theme=dark&font=Karla&ext=heatmap" alt="LeetCode stats" width="90%" />
+  <img src="https://leetcard.jacoblin.cool/bharath_1005?font=Karla&ext=heatmap" alt="LeetCode stats" width="90%" />
 </a>
 
 </div>
@@ -96,10 +89,22 @@
 
 <div align="center">
 
-<img height="170" src="https://github-readme-stats.shion.dev/api?username=bharathrajm-2005&theme=tokyonight&show_icons=true&hide_border=true" alt="stats" />
-<img height="170" src="https://github-readme-stats.shion.dev/api/top-langs/?username=bharathrajm-2005&theme=tokyonight&hide_border=true&layout=compact" alt="top languages" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.shion.dev/api?username=bharathrajm-2005&theme=tokyonight&show_icons=true&hide_border=true">
+  <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.shion.dev/api?username=bharathrajm-2005&theme=default&show_icons=true&hide_border=true">
+  <img height="170" src="https://github-readme-stats.shion.dev/api?username=bharathrajm-2005&theme=tokyonight&show_icons=true&hide_border=true" alt="stats" />
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.shion.dev/api/top-langs/?username=bharathrajm-2005&theme=tokyonight&hide_border=true&layout=compact">
+  <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.shion.dev/api/top-langs/?username=bharathrajm-2005&theme=default&hide_border=true&layout=compact">
+  <img height="170" src="https://github-readme-stats.shion.dev/api/top-langs/?username=bharathrajm-2005&theme=tokyonight&hide_border=true&layout=compact" alt="top languages" />
+</picture>
 
-<img src="https://streak-stats.demolab.com/?user=bharathrajm-2005&theme=tokyonight&hide_border=true" alt="streak" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://streak-stats.demolab.com/?user=bharathrajm-2005&theme=tokyonight&hide_border=true">
+  <source media="(prefers-color-scheme: light)" srcset="https://streak-stats.demolab.com/?user=bharathrajm-2005&theme=default&hide_border=true">
+  <img  src="https://streak-stats.demolab.com/?user=bharathrajm-2005&theme=tokyonight&hide_border=true" alt="streak" />
+</picture>
 
 </div>
 
