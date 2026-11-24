@@ -1,188 +1,66 @@
-# Trustistics — Decentralized Cold-Chain Provenance & Tamper Detection Platform
+<div align="center">
 
-Trustistics is an enterprise cold-chain monitoring, provenance verification, and tamper-detection system designed for sensitive pharmaceutical and perishable logistics (such as vaccines, biologics, and donor organs). 
+# ❄️ Trustistics
+### **Decentralized Cold-Chain Provenance & Tamper-Detection Platform**
 
-It combines **Ethereum smart contracts**, an **automated IoT telemetry simulator**, **OpenWeather-informed risk forecasting**, and a **role-based React dashboard** to enforce end-to-end auditability and trust across the supply chain.
+*Cryptographic auditability, real-time IoT telemetry, and predictive route risk intelligence for temperature-critical pharmaceutical and perishable logistics.*
+
+[![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-363636?style=for-the-badge&logo=solidity)](https://soliditylang.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React 19](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Ethereum](https://img.shields.io/badge/EVM_Hardhat-3C3C3D?style=for-the-badge&logo=ethereum&logoColor=white)](https://hardhat.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 ---
 
-## 📌 Why This Project Exists
+[Overview](#-why-trustistics-exists) • [Architecture](#-system-architecture) • [Core Capabilities](#-core-capabilities) • [Role Portals](#-role-based-portals) • [Quick Start](#-step-by-step-setup--run-commands) • [Verification Flow](#-end-to-end-verification-workflow)
 
-1. **The Cold-Chain Vulnerability**: Temperature-sensitive medical products spoil rapidly if temperature deviations occur during transit. In traditional logistics, temperature logs are often recorded on proprietary paper or closed systems, making them vulnerable to manual tampering or omitted records.
-2. **Custody & Handoff Blindspots**: Multiple independent parties handle a shipment (Suppliers, Drivers, Customs Inspectors, Warehouses, Delivery Partners). Disputes frequently arise regarding who possessed the container when temperature thresholds were breached or seals were compromised.
-3. **Cryptographic Proof & Accountability**: Trustistics anchors every critical milestone—shipment initialization, document uploads, custody handoffs, customs clearances, and temperature breach alerts—to an immutable blockchain ledger via cryptographic hashes (`bytes32 dataHash`). Any post-facto modification in the database is immediately flagged by the tamper detection engine.
+</div>
+
+---
+
+## 🎯 Why Trustistics Exists
+
+Temperature-sensitive medical shipments—such as **vaccines, biologics, insulin, and donor organs**—can lose efficacy or spoil completely within minutes of a thermal excursion. Traditional supply chains rely on fragmented, siloed logging systems that leave critical gaps in accountability.
+
+| 🚨 The Industry Challenge | 🛡️ The Trustistics Solution |
+| :--- | :--- |
+| **Mutable & Siloed Logs**<br>Paper records and centralized databases can be altered or selectively omitted after a spoilage event occurs. | **On-Chain Cryptographic Anchoring**<br>Every critical milestone and telemetry checkpoint is hashed (`SHA-256` / `bytes32`) and anchored to an immutable Ethereum smart contract. |
+| **Custody & Handoff Blindspots**<br>Shipments pass through suppliers, drivers, customs, and warehouses—creating disputes over *who* held custody during a breach. | **Verifiable Chain-of-Custody**<br>Cryptographically signed handoffs bind every physical transfer to an authenticated role and timestamp. |
+| **Reactive Breach Discovery**<br>Thermal excursions are often discovered only after delivery, when life-saving cargo is already ruined. | **Live IoT Telemetry + Predictive Weather Risk**<br>Real-time sensor streams and OpenWeather-informed route risk scoring flag hazards before and during transit. |
+| **Opaque Verification for Recipients**<br>Hospitals and clinics lack an instant, trustless way to audit a shipment's cold-chain history upon arrival. | **Zero-Login Public QR Passport**<br>A single QR scan reveals the full temperature timeline, custody trail, and live blockchain hash verification. |
 
 ---
 
 ## 🏛️ System Architecture
 
+Trustistics bridges physical edge telemetry with off-chain high-throughput storage (**MongoDB**) and on-chain cryptographic truth (**Hardhat EVM**).
+
 ```mermaid
 flowchart TD
-    subgraph Edge["Edge / Physical Layer"]
-        IoT["IoT Sensors / GPS (iot_simulator.py)"]
-        QR["QR Code Scanners (html5-qrcode)"]
+    subgraph Edge["📡 Edge & Physical Layer"]
+        IoT["🌡️ IoT Sensors & GPS<br/>(iot_simulator.py)"]
+        QR["📱 QR Code Scanners<br/>(html5-qrcode)"]
     end
 
-    subgraph Frontend["Frontend Layer (React 19 + Vite)"]
-        UI["Role-Based Portals: Supplier | Driver | Warehouse | Customs | Customer"]
-        PublicVerify["Public Trust Page (/verify/:shipmentId)"]
+    subgraph Frontend["🖥️ Frontend Layer (React 19 + Vite)"]
+        UI["🔐 Role-Based Portals<br/>Supplier | Driver | Warehouse | Customs"]
+        PublicVerify["🌐 Public Trust Passport<br/>(/verify/:shipmentId)"]
     end
 
-    subgraph Backend["API Layer (FastAPI)"]
-        API["FastAPI REST Endpoints"]
-        RiskEngine["Real-Time Risk & Weather Assessment"]
-        VerificationEngine["Tamper Detection & Custody Validator"]
+    subgraph Backend["⚙️ API & Intelligence Layer (FastAPI)"]
+        API["🚀 FastAPI REST Gateway"]
+        RiskEngine["🌦️ Weather & Route Risk Engine"]
+        VerificationEngine["🛡️ Tamper Detection & Custody Validator"]
     end
 
-    subgraph Storage["Storage & Ledger"]
-        MongoDB[("MongoDB (coldchain db)")]
-        Blockchain[("Hardhat EVM (ColdChainProvenance.sol)")]
+    subgraph Storage["🗄️ Persistence & Immutable Ledger"]
+        MongoDB[("🍃 MongoDB<br/>(coldchain database)")]
+        Blockchain[("⛓️ Hardhat EVM<br/>(ColdChainProvenance.sol)")]
     end
 
-    IoT -->|POST /api/tracking/:id/temperature| API
-    QR -->|Scan Verification URL| PublicVerify
-    UI <-->|HTTP / JSON| API
-    PublicVerify <-->|HTTP / JSON| API
-
-    API <-->|Shipment & Telemetry Records| MongoDB
-    API -->|anchorEvent(shipmentId, eventType, dataHash)| Blockchain
-    VerificationEngine -->|verifyHash(shipmentId, dataHash)| Blockchain
-```
-
----
-
-## 🚀 Key Features
-
-- **Immutable Milestone Anchoring**: Every critical event (creation, dispatch, handoff, customs, temperature breach) produces a SHA-256 hash stored on-chain in `ColdChainProvenance.sol`.
-- **Automated IoT Sensor Simulation**: `iot_simulator.py` simulates real-time temperature fluctuations, battery drain, GPS waypoints, and injected temperature breaches along routes.
-- **Dynamic Weather & Route Risk Scoring**: Ingests route forecasts to alert logistics operators of temperature risks prior to dispatch.
-- **Custody Chain Tracking**: Digital sign-offs during physical handoffs between drivers, customs, and warehouse managers.
-- **One-Click Public QR Verification**: Every shipment generates a unique QR code. End users (hospitals, doctors, patients) can scan the QR code to inspect complete provenance, temperature graphs, custody logs, and blockchain audit stamps without logging in.
-- **Automated Tamper Detection**: Compares database records against blockchain-anchored hashes to expose tampered telemetry, altered documents, or unauthorized modifications.
-
----
-
-## 👥 User Roles & Access
-
-The web interface includes simulated role-based access. Log in with any email/password and select your role:
-
-| Role | Access URL | Capabilities |
-| :--- | :--- | :--- |
-| **Supplier** | `/supplier` | Create shipments, upload documents, live tracking, timeline inspection, analytics, tamper detection. |
-| **Driver** | `/driver` | View assigned route manifests, log GPS checkpoints, and execute custody handoffs. |
-| **Warehouse Manager** | `/warehouse` | Manage shipment intake, inspection logs, and storage conditions. |
-| **Customs Officer** | `/customs` | Record import/export customs clearance, flag inspections, and sign approvals. |
-| **Customer / Recipient** | `/verify/:shipmentId` | Public view to audit temperature history, chain of custody, and smart contract verification. |
-
----
-
-## 🛠️ Tech Stack
-
-- **Smart Contracts**: Solidity `^0.8.20`, Hardhat, Ethers.js
-- **Backend**: Python 3.10+, FastAPI, Uvicorn, PyMongo, Web3.py, Pydantic, Passlib, Bcrypt, HTTPX
-- **Database**: MongoDB (`coldchain`)
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, Recharts, Three.js, html5-qrcode, qrcode.react
-
----
-
-## 📋 Prerequisites
-
-Before running the project, ensure you have:
-1. **Node.js** (v18.x or v20.x+) & **npm**
-2. **Python** (v3.10+ or v3.13+)
-3. **MongoDB** running locally on port `27017` (or a cloud MongoDB Atlas connection URI)
-
----
-
-## ⚡ Step-by-Step Setup & Run Commands
-
-Open separate PowerShell / terminal tabs for each service from the project root directory:
-
-### 1️⃣ Terminal 1: Blockchain Layer (Hardhat)
-
-```powershell
-# Navigate to blockchain directory and install dependencies
-cd blockchain
-npm install
-
-# Start local Hardhat Ethereum node (keep this running)
-npm run node
-```
-
-In a separate one-off terminal tab, deploy the smart contract to the running node:
-```powershell
-cd blockchain
-npm run deploy
-```
-> **Note**: `npm run deploy` outputs the contract address and automatically writes `CONTRACT_ADDRESS` into `backend/.env`.
-
----
-
-### 2️⃣ Terminal 2: Backend API (FastAPI)
-
-1. Make sure your local MongoDB service is running (or set your MongoDB Atlas URI in `backend/.env`).
-2. Run the following:
-
-```powershell
-# Navigate to project root
-cd C:\Users\LENOVO\trustistics
-
-# Create and activate virtual environment (if not already created)
-python -m venv backend\venv
-.\backend\venv\Scripts\Activate.ps1
-
-# Install backend dependencies
-pip install -r backend\requirements.txt
-
-# Start the FastAPI server on all interfaces
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-- **Interactive API Documentation (Swagger)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-
----
-
-### 3️⃣ Terminal 3: Frontend Web App (React + Vite)
-
-```powershell
-# Navigate to frontend directory
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start Vite development server
-npm run dev -- --host
-```
-
-- **Web Dashboard**: [http://localhost:5173](http://localhost:5173) (or access via your local LAN IP displayed in terminal).
-
----
-
-### 4️⃣ Terminal 4: IoT Sensor Telemetry Simulator (Optional / Testing)
-
-Once a shipment has been created in the dashboard:
-
-```powershell
-# Run simulator from workspace root
-python iot_simulator.py <SHIPMENT_ID> [OPTIONAL_BASE_TEMPERATURE]
-
-# Example:
-python iot_simulator.py SHP-9372 -20
-```
-The simulator will push real-time GPS locations and temperature updates every 30 seconds along a predefined transit route, deliberately triggering a breach event at milestone 3 (Bhopal) for testing alert pipelines and blockchain anchoring.
-
----
-
-## 🔒 Verification & Tamper Detection Workflow
-
-1. **Create Shipment**: Enter product details, temperature limits, and origin/destination on `/supplier/create`.
-2. **Download & Attach QR**: Print or display the generated QR code which links to `${origin}/verify/${shipment_id}`.
-3. **Simulate Movement**: Start `python iot_simulator.py <SHIPMENT_ID>`. Watch the live telemetry and temperature charts update in `/supplier/tracking`.
-4. **Audit on Chain**: Open `/supplier/tamper` to run a cryptographic integrity check between MongoDB and the Ethereum smart contract.
-
----
-
-## 📄 License
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+    IoT -->|"POST /api/tracking/:id/temperature"| API
+    QR -->|"Scan Verification URL"| PublicVerify
+    UI <-->|"HTTP / JSON"| API
+    PublicVerify <-->|"HTTP / JSON"|
