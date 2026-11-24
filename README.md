@@ -39,28 +39,36 @@ Trustistics bridges physical edge telemetry with off-chain high-throughput stora
 
 ```mermaid
 flowchart TD
-    subgraph Edge["📡 Edge & Physical Layer"]
-        IoT["🌡️ IoT Sensors & GPS<br/>(iot_simulator.py)"]
-        QR["📱 QR Code Scanners<br/>(html5-qrcode)"]
+    subgraph Edge["Edge & Physical Layer"]
+        IoT["IoT Sensors & GPS<br/>(iot_simulator.py)"]
+        QR["QR Code Scanners<br/>(html5-qrcode)"]
     end
 
-    subgraph Frontend["🖥️ Frontend Layer (React 19 + Vite)"]
-        UI["🔐 Role-Based Portals<br/>Supplier | Driver | Warehouse | Customs"]
-        PublicVerify["🌐 Public Trust Passport<br/>(/verify/:shipmentId)"]
+    subgraph Frontend["Frontend Layer (React 19 + Vite)"]
+        UI["Role-Based Portals<br/>Supplier | Driver | Warehouse | Customs"]
+        PublicVerify["Public Trust Passport<br/>(/verify/:shipmentId)"]
     end
 
-    subgraph Backend["⚙️ API & Intelligence Layer (FastAPI)"]
-        API["🚀 FastAPI REST Gateway"]
-        RiskEngine["🌦️ Weather & Route Risk Engine"]
-        VerificationEngine["🛡️ Tamper Detection & Custody Validator"]
+    subgraph Backend["API & Intelligence Layer (FastAPI)"]
+        API["FastAPI REST Gateway"]
+        RiskEngine["Weather & Route Risk Engine"]
+        VerificationEngine["Tamper Detection & Custody Validator"]
     end
 
-    subgraph Storage["🗄️ Persistence & Immutable Ledger"]
-        MongoDB[("🍃 MongoDB<br/>(coldchain database)")]
-        Blockchain[("⛓️ Hardhat EVM<br/>(ColdChainProvenance.sol)")]
+    subgraph Storage["Persistence & Immutable Ledger"]
+        MongoDB[("MongoDB<br/>(coldchain database)")]
+        Blockchain[("Hardhat EVM<br/>(ColdChainProvenance.sol)")]
     end
 
     IoT -->|"POST /api/tracking/:id/temperature"| API
     QR -->|"Scan Verification URL"| PublicVerify
-    UI <-->|"HTTP / JSON"| API
-    PublicVerify <-->|"HTTP / JSON"|
+    UI -->|"HTTP / JSON"| API
+    API -->|"HTTP / JSON"| UI
+    PublicVerify -->|"HTTP / JSON"| API
+    API -->|"HTTP / JSON"| PublicVerify
+
+    API -->|"Shipment & Telemetry Records"| MongoDB
+    MongoDB -->|"Shipment & Telemetry Records"| API
+    API -->|"anchorEvent(shipmentId, eventType, dataHash)"| Blockchain
+    VerificationEngine -->|"verifyHash(shipmentId, dataHash)"| Blockchain
+```
